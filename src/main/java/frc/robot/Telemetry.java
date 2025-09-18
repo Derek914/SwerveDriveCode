@@ -30,9 +30,13 @@ public class Telemetry {
      */
     public Telemetry(double maxSpeed) {
         MaxSpeed = maxSpeed;
+        // Start CTRE signal logging so drive data is captured to a file
         SignalLogger.start();
 
-        /* Set up the module state Mechanism2d telemetry */
+        /*
+         * Create simple on-screen visuals (Mechanism2d) for each swerve module.
+         * These show module angle and speed so drivers/mentors can sanity check behavior.
+         */
         for (int i = 0; i < 4; ++i) {
             SmartDashboard.putData("Module " + i, m_moduleMechanisms[i]);
         }
@@ -43,6 +47,7 @@ public class Telemetry {
 
     /* Robot swerve drive state */
     private final NetworkTable driveStateTable = inst.getTable("DriveState");
+    // Pose, speeds, module states/targets/positions, and timing are all published
     private final StructPublisher<Pose2d> drivePose = driveStateTable.getStructTopic("Pose", Pose2d.struct).publish();
     private final StructPublisher<ChassisSpeeds> driveSpeeds = driveStateTable.getStructTopic("Speeds", ChassisSpeeds.struct).publish();
     private final StructArrayPublisher<SwerveModuleState> driveModuleStates = driveStateTable.getStructArrayTopic("ModuleStates", SwerveModuleState.struct).publish();
@@ -63,7 +68,11 @@ public class Telemetry {
         new Mechanism2d(1, 1),
         new Mechanism2d(1, 1),
     };
-    /* A direction and length changing ligament for speed representation */
+    /*
+     * For each module, we draw two "ligaments":
+     *  - Speed ligament: length shows speed magnitude
+     *  - Direction ligament: angle shows the module's current steering angle
+     */
     private final MechanismLigament2d[] m_moduleSpeeds = new MechanismLigament2d[] {
         m_moduleMechanisms[0].getRoot("RootSpeed", 0.5, 0.5).append(new MechanismLigament2d("Speed", 0.5, 0)),
         m_moduleMechanisms[1].getRoot("RootSpeed", 0.5, 0.5).append(new MechanismLigament2d("Speed", 0.5, 0)),
@@ -86,7 +95,10 @@ public class Telemetry {
     private final double[] m_moduleStatesArray = new double[8];
     private final double[] m_moduleTargetsArray = new double[8];
 
-    /** Accept the swerve drive state and telemeterize it to SmartDashboard and SignalLogger. */
+    /**
+     * Accept the swerve drive state and publish it to SmartDashboard and the CTRE log.
+     * This is called by the drivetrain each loop so the UI stays fresh for drivers.
+     */
     public void telemeterize(SwerveDriveState state) {
         /* Telemeterize the swerve drive state */
         drivePose.set(state.Pose);
@@ -113,11 +125,14 @@ public class Telemetry {
         SignalLogger.writeDoubleArray("DriveState/ModuleTargets", m_moduleTargetsArray);
         SignalLogger.writeDouble("DriveState/OdometryPeriod", state.OdometryPeriod, "seconds");
 
-        /* Telemeterize the pose to a Field2d */
+        /* Publish pose to Field2d viewer (shuffleboard/glass) */
         fieldTypePub.set("Field2d");
         fieldPub.set(m_poseArray);
 
-        /* Telemeterize each module state to a Mechanism2d */
+        /* Update per-module visuals
+         *  - Angle is set directly from the module steering angle
+         *  - Speed length is scaled by MaxSpeed so the UI stays in [0..0.5]
+         */
         for (int i = 0; i < 4; ++i) {
             m_moduleSpeeds[i].setAngle(state.ModuleStates[i].angle);
             m_moduleDirections[i].setAngle(state.ModuleStates[i].angle);
