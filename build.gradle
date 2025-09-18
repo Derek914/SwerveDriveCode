@@ -1,17 +1,22 @@
+// Build script for this robot project
+// - Uses Java 17 and WPILib's GradleRIO plugin to build, simulate, and deploy
 plugins {
     id "java"
-    id "edu.wpi.first.GradleRIO" version "2025.3.2"
+    id "edu.wpi.first.GradleRIO" version "2025.3.2" // WPILib build/deploy plugin
 }
 
+// Java toolchain and compatibility level
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
 }
 
+// The entry point class for the robot program
 def ROBOT_MAIN_CLASS = "frc.robot.Main"
 
 // Define my targets (RoboRIO) and artifacts (deployable files)
 // This is added by GradleRIO's backing project DeployUtils.
+// Configure deploy targets and artifacts (what gets copied to the roboRIO)
 deploy {
     targets {
         roborio(getTargetTypeClass('RoboRIO')) {
@@ -22,14 +27,16 @@ deploy {
             team = project.frc.getTeamNumber()
             debug = project.frc.getDebugOrDefault(false)
 
-            artifacts {
+        artifacts {
                 // First part is artifact name, 2nd is artifact type
                 // getTargetTypeClass is a shortcut to get the class type using a string
 
                 frcJava(getArtifactTypeClass('FRCJavaArtifact')) {
+            // Main robot jar produced by the build
                 }
 
                 // Static files artifact
+                // Files under src/main/deploy are copied as-is to the roboRIO
                 frcStaticFileDeploy(getArtifactTypeClass('FileTreeArtifact')) {
                     files = project.fileTree('src/main/deploy')
                     directory = '/home/lvuser/deploy'
@@ -43,14 +50,15 @@ deploy {
 
 def deployArtifact = deploy.targets.roborio.artifacts.frcJava
 
-// Set to true to use debug for JNI.
+// Set to true to use debug for JNI (native debugging; rarely needed)
 wpi.java.debugJni = false
 
-// Set this to true to enable desktop support.
+// Enable desktop (simulation) support: allows running on PC with sim GUI
 def includeDesktopSupport = true
 
 // Defining my dependencies. In this case, WPILib (+ friends), and vendor libraries.
 // Also defines JUnit 5.
+// Libraries used by the project: WPILib core + vendor deps (CTRE Phoenix 6)
 dependencies {
     annotationProcessor wpi.java.deps.wpilibAnnotations()
     implementation wpi.java.deps.wpilib()
@@ -79,13 +87,15 @@ test {
     systemProperty 'junit.jupiter.extensions.autodetection.enabled', 'true'
 }
 
-// Simulation configuration (e.g. environment variables).
+// Simulation configuration (e.g. enable GUI, include DS window in sim)
 wpi.sim.addGui().defaultEnabled = true
 wpi.sim.addDriverstation()
 
 // Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
 // in order to make them all available at runtime. Also adding the manifest so WPILib
 // knows where to look for our Robot Class.
+// Build a "fat jar" that includes dependencies, plus the manifest that tells
+// WPILib which class contains main() and the Robot implementation
 jar {
     from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     from sourceSets.main.allSource
@@ -98,7 +108,7 @@ deployArtifact.jarTask = jar
 wpi.java.configureExecutableTasks(jar)
 wpi.java.configureTestTasks(test)
 
-// Configure string concat to always inline compile
+// Slight compiler tweak for efficient String concatenation
 tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
 }

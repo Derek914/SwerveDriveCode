@@ -20,31 +20,45 @@ import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
 public class RobotContainer {
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+    // Max linear speed of the robot (meters/second). Pulled from tuning constants
+    // so builders can change top speed in one place. Used to scale the sticks.
+    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
+    // Max rotational speed (radians/second). Scales right-stick rotation.
+    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
-    /* Setting up bindings for necessary control of the swerve drive platform */
+    /*
+     * Swerve request templates (think: "drive modes").
+     * We clone/fill these every 20ms with the latest joystick values.
+     */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+            // Add a 10% deadband so tiny stick noise doesn't move the robot
+            .withDeadband(MaxSpeed * 0.1)
+            .withRotationalDeadband(MaxAngularRate * 0.1)
+            // Open-loop is simple and responsive for driver control. Closed-loop is
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
 
+    // Telemetry helper publishes robot pose, module states, etc., to dashboard/logs
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
+    // Primary driver controller on USB port 0
     private final CommandXboxController joystick = new CommandXboxController(0);
 
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     public RobotContainer() {
+        // Wire up all stick/trigger/button behaviors and default driving
         configureBindings();
     }
 
     private void configureBindings() {
-        // Note that X is defined as forward according to WPILib convention,
-        // and Y is defined as to the left according to WPILib convention.
+        // Coordinate system note (WPILib convention):
+        //  - +X is forward (away from your driver wall)
+        //  - +Y is left
         drivetrain.setDefaultCommand(
-            // Drivetrain will execute this command periodically
+            // Default drive command (runs every 20ms in teleop). Each loop, we
+            // read the sticks and produce a field-centric request.
             drivetrain.applyRequest(() ->
                 drive.withVelocityX(-joystick.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
                     .withVelocityY(-joystick.getLeftX() * MaxSpeed) // Drive left with negative X (left)
@@ -52,32 +66,37 @@ public class RobotContainer {
             )
         );
 
-        // Idle while the robot is disabled. This ensures the configured
-        // neutral mode is applied to the drive motors while disabled.
+        // While disabled, continuously apply an Idle request. This ensures the
+        // configured neutral mode is applied (e.g., coast/brake) and that
+        // modules don't command motion while the robot is safe-disabled.
         final var idle = new SwerveRequest.Idle();
         RobotModeTriggers.disabled().whileTrue(
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
+        // A: Hold swerve in a braking stance (useful for resisting pushing)
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        // B: Point all wheels in the direction of the left stick (live; not a preset)
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
-        // Run SysId routines when holding back/start and X/Y.
-        // Note that each routine should be run exactly once in a single log.
+        // SysId motor characterization (for tuning feedforward/feedback gains).
+        // Run each routine exactly once per log; do not spam these during matches.
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
         joystick.back().and(joystick.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // reset the field-centric heading on left bumper press
+        // Left bumper: reset field-centric heading to "forward" now
         joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
+        // Feed drivetrain state to dashboards/logs for driver/mentor visibility
         drivetrain.registerTelemetry(logger::telemeterize);
     }
 
     public Command getAutonomousCommand() {
+        // Stub autonomous. Replace with real auto routine when ready.
         return Commands.print("No autonomous command configured");
     }
 }

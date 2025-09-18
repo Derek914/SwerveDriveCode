@@ -28,6 +28,16 @@ import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 /**
  * Class that extends the Phoenix 6 SwerveDrivetrain class and implements
  * Subsystem so it can easily be used in command-based projects.
+ *
+ * Builder view:
+ *  - This class is the "swerve drivetrain"—it owns the 4 modules and the gyro.
+ *  - It knows robot speed, heading, and each wheel's angle/speed.
+ *  - It also handles alliance orientation (red/blue flips) and simulation.
+ *
+ * Coder view:
+ *  - Wraps CTRE's TunerSwerveDrivetrain with WPILib Subsystem glue.
+ *  - Provides applyRequest(Supplier<SwerveRequest>) so commands can stream requests.
+ *  - Hosts SysId routines for translation/steer/rotation characterization.
  */
 public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Subsystem {
     private static final double kSimLoopPeriod = 0.005; // 5 ms
@@ -46,7 +56,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.SysIdSwerveSteerGains m_steerCharacterization = new SwerveRequest.SysIdSwerveSteerGains();
     private final SwerveRequest.SysIdSwerveRotation m_rotationCharacterization = new SwerveRequest.SysIdSwerveRotation();
 
-    /* SysId routine for characterizing translation. This is used to find PID gains for the drive motors. */
+    /* SysId routine for characterizing translation. Used to find drive PID/FF gains. */
     private final SysIdRoutine m_sysIdRoutineTranslation = new SysIdRoutine(
         new SysIdRoutine.Config(
             null,        // Use default ramp rate (1 V/s)
@@ -62,7 +72,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         )
     );
 
-    /* SysId routine for characterizing steer. This is used to find PID gains for the steer motors. */
+    /* SysId routine for characterizing steer. Used to find steer PID/FF gains. */
     private final SysIdRoutine m_sysIdRoutineSteer = new SysIdRoutine(
         new SysIdRoutine.Config(
             null,        // Use default ramp rate (1 V/s)
@@ -80,8 +90,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     /*
      * SysId routine for characterizing rotation.
-     * This is used to find PID gains for the FieldCentricFacingAngle HeadingController.
-     * See the documentation of SwerveRequest.SysIdSwerveRotation for info on importing the log to SysId.
+     * Used to tune heading control for precise rotation commands.
+     * See SwerveRequest.SysIdSwerveRotation docs for importing logs to SysId.
      */
     private final SysIdRoutine m_sysIdRoutineRotation = new SysIdRoutine(
         new SysIdRoutine.Config(
@@ -109,14 +119,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private SysIdRoutine m_sysIdRoutineToApply = m_sysIdRoutineTranslation;
 
     /**
-     * Constructs a CTRE SwerveDrivetrain using the specified constants.
-     * <p>
-     * This constructs the underlying hardware devices, so users should not construct
-     * the devices themselves. If they need the devices, they can access them through
-     * getters in the classes.
-     *
-     * @param drivetrainConstants   Drivetrain-wide constants for the swerve drive
-     * @param modules               Constants for each specific module
+     * Construct the swerve drivetrain with hardware constants and module layout.
+     * Builders: this is where the wheelbase geometry and CAN IDs from TunerConstants
+     * come to life. Do not instantiate motors or encoders yourself—this class does it.
      */
     public CommandSwerveDrivetrain(
         SwerveDrivetrainConstants drivetrainConstants,
@@ -124,6 +129,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     ) {
         super(drivetrainConstants, modules);
         if (Utils.isSimulation()) {
+            // In simulation we run a fast internal loop so control feels realistic
             startSimThread();
         }
     }
@@ -191,6 +197,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      * @return Command to run
      */
     public Command applyRequest(Supplier<SwerveRequest> requestSupplier) {
+        // Wrap a swerve control request in a WPILib Command so we can bind it as a
+        // default command or to buttons. This streams the latest request each loop.
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
@@ -238,6 +246,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     private void startSimThread() {
+        // Start a Notifier-based loop that runs the drivetrain simulation faster than
+        // the normal 20ms loop. This makes control tuning behave more like real life.
         m_lastSimTime = Utils.getCurrentTimeSeconds();
 
         /* Run simulation at a faster rate so PID gains behave more reasonably */
@@ -261,6 +271,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     @Override
     public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
+        // Convert FPGA (RIO) timestamp to the drivetrain's current-time base so
+        // the sensor fusion aligns vision and odometry correctly.
         super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds));
     }
 
@@ -283,6 +295,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         double timestampSeconds,
         Matrix<N3, N1> visionMeasurementStdDevs
     ) {
+        // Same as above with explicit standard deviations for the vision measurement
         super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds), visionMeasurementStdDevs);
     }
 }
