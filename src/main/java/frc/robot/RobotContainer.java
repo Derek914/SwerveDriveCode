@@ -98,6 +98,21 @@ public class RobotContainer {
 
     public Command getAutonomousCommand() {
         // Stub autonomous. Replace with real auto routine when ready.
-        return Commands.print("No autonomous command configured");
+        // Create a request that drives backward at a small linear velocity while
+        // keeping rotation zero. We use field-centric velocities: negative X is
+        // backward here because the teleop mapping used negative stick Y for
+        // forward. Use a fraction of MaxSpeed to be safe.
+        final var backward = drive.withVelocityX(-0.25 * MaxSpeed)
+                                 .withVelocityY(0)
+                                 .withRotationalRate(0);
+
+        // Idle request to stop motion after the routine.
+        final var idle = new SwerveRequest.Idle();
+
+        // Sequence: apply the backward request for 1 second, then go idle.
+        return Commands.sequence(
+            drivetrain.applyRequest(() -> backward).withTimeout(1.0),
+            drivetrain.applyRequest(() -> idle)
+        );
     }
 }
