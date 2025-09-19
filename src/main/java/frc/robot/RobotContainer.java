@@ -97,5 +97,18 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
+                // create variable to drive backwards at 25% max speed
+                final var backward = drive.withVelocityX(0)
+                .withVelocityY(-0.25 * MaxSpeed)
+                .withRotationalRate(0);
+
+// create variable to stop
+final var idle = new SwerveRequest.Idle();
+
+// Sequence: apply the backward request for x seconds, then go idle.
+return Commands.sequence(
+drivetrain.applyRequest(() -> backward).withTimeout(1.0),
+drivetrain.applyRequest(() -> idle)
+);
     }
 }
