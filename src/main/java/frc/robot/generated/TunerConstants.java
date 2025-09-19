@@ -162,7 +162,7 @@ public class TunerConstants {
     private static final int kFrontRightSteerMotorId = 4;
     private static final int kFrontRightEncoderId = 10;
     // Absolute encoder offset for "wheels straight ahead" on this module
-    private static final Angle kFrontRightEncoderOffset = Rotations.of(0.072509765625-0.125);
+    private static final Angle kFrontRightEncoderOffset = Rotations.of(-0.108643);
     private static final boolean kFrontRightSteerMotorInverted = true;
     private static final boolean kFrontRightEncoderInverted = false;
 
@@ -296,7 +296,7 @@ public class TunerConstants {
          *                                  and radians
          * @param modules                   Constants for each specific module
          */
-        public TunerSwerveDrivetrain(
+         public TunerSwerveDrivetrain(
             SwerveDrivetrainConstants drivetrainConstants,
             double odometryUpdateFrequency,
             Matrix<N3, N1> odometryStandardDeviation,
@@ -308,6 +308,7 @@ public class TunerConstants {
                 drivetrainConstants, odometryUpdateFrequency,
                 odometryStandardDeviation, visionStandardDeviation, modules
             );
+        
         }
     }
 }
