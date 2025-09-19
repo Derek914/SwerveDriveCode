@@ -24,7 +24,7 @@ public class RobotContainer {
     // so builders can change top speed in one place. Used to scale the sticks.
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     // Max rotational speed (radians/second). Scales right-stick rotation.
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+    private double MaxAngularRate = RotationsPerSecond.of(1.75).in(RadiansPerSecond);
 
     /*
      * Swerve request templates (think: "drive modes").
