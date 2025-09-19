@@ -24,7 +24,7 @@ public class RobotContainer {
     // so builders can change top speed in one place. Used to scale the sticks.
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond);
     // Max rotational speed (radians/second). Scales right-stick rotation.
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond);
+    private double MaxAngularRate = RotationsPerSecond.of(1.75).in(RadiansPerSecond);
 
     /*
      * Swerve request templates (think: "drive modes").
@@ -97,18 +97,5 @@ public class RobotContainer {
     }
 
     public Command getAutonomousCommand() {
-        // create variable to drive backwards at 25% max speed
-        final var backward = drive.withVelocityX(0)
-                                 .withVelocityY(-0.25 * MaxSpeed)
-                                 .withRotationalRate(0);
-
-        // create variable to stop
-        final var idle = new SwerveRequest.Idle();
-
-        // Sequence: apply the backward request for x seconds, then go idle.
-        return Commands.sequence(
-            drivetrain.applyRequest(() -> backward).withTimeout(1.0),
-            drivetrain.applyRequest(() -> idle)
-        );
     }
 }
