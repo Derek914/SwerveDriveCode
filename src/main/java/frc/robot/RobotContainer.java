@@ -46,6 +46,9 @@ public class RobotContainer {
     // Primary driver controller on USB port 0
     private final CommandXboxController joystick = new CommandXboxController(0);
 
+    // Tubewheel subsystem (placeholder hardware)
+    private final frc.robot.subsystems.Tubewheel tubewheel = new frc.robot.subsystems.Tubewheel();
+
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     public RobotContainer() {
@@ -81,6 +84,10 @@ public class RobotContainer {
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
+
+        // Tubewheel on right bumper / right trigger: RB = forward while held, RT = backward while held
+        joystick.rightBumper().whileTrue(tubewheel.run(0.8)); // RB
+        joystick.rightTrigger().whileTrue(tubewheel.run(-0.8)); // RT (note: returns analog; treated as boolean here)
 
         // SysId motor characterization (for tuning feedforward/feedback gains).
         // Run each routine exactly once per log; do not spam these during matches.
