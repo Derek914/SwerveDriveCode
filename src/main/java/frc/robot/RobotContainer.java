@@ -79,15 +79,15 @@ public class RobotContainer {
         );
 
         // A: Hold swerve in a braking stance (useful for resisting pushing)
-        joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        joystick.x().whileTrue(drivetrain.applyRequest(() -> brake));
         // B: Point all wheels in the direction of the left stick (live; not a preset)
-        joystick.b().whileTrue(drivetrain.applyRequest(() ->
+        joystick.y().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
-        // Tubewheel on right bumper / right trigger: RB = forward while held, RT = backward while held
-        joystick.rightBumper().whileTrue(tubewheel.run(0.8)); // RB
-        joystick.rightTrigger().whileTrue(tubewheel.run(-0.8)); // RT (note: returns analog; treated as boolean here)
+        // Tubewheel on A / B: A = forward while held, B = backward while held
+        joystick.a().whileTrue(tubewheel.run(0.8)); // A
+        joystick.b().whileTrue(tubewheel.run(-0.8)); // B (note: returns analog; treated as boolean here)
 
         // SysId motor characterization (for tuning feedforward/feedback gains).
         // Run each routine exactly once per log; do not spam these during matches.
